@@ -1,6 +1,7 @@
-﻿# python .\plot_spectrum.py ".\red255mini-214848.csv" --out "red255mini.png"
+﻿# python .\plot_spectrum.py ".\data\red255mini-214848.csv"
 import argparse
 import csv
+import glob
 import os
 from typing import List, Tuple, Optional
 
@@ -112,7 +113,7 @@ def _plot_colored_line(
     wls: List[float],
     vals: List[float],
     ax: plt.Axes,
-    cmap: str,
+    cmap: LinearSegmentedColormap,
     norm: Normalize,
     label: str,
 ) -> LineCollection:
@@ -130,7 +131,6 @@ def plot_spectra(csv_paths: List[str], out_path: str, show: bool) -> None:
     fig, ax = plt.subplots(figsize=(8, 4.5))
     cmap = spectrum_colormap()
     norm = Normalize(380, 780)
-    last_lc: Optional[LineCollection] = None
 
     for path in csv_paths:
         wls, vals, unit = read_spectrum(path)
@@ -138,7 +138,7 @@ def plot_spectra(csv_paths: List[str], out_path: str, show: bool) -> None:
             unit_label = unit
         label = os.path.splitext(os.path.basename(path))[0]
         if len(wls) >= 2:
-            last_lc = _plot_colored_line(wls, vals, ax, cmap, norm, label)
+            _plot_colored_line(wls, vals, ax, cmap, norm, label)
         else:
             ax.plot(wls, vals, linewidth=1.4, label=label)
 
@@ -155,7 +155,6 @@ def plot_spectra(csv_paths: List[str], out_path: str, show: bool) -> None:
         ax.set_title("Spectra")
         ax.legend(fontsize=8)
     ax.grid(True, alpha=0.25)
-    # No colorbar (per request)
     fig.tight_layout()
 
     plt.savefig(out_path, dpi=150)
@@ -163,24 +162,55 @@ def plot_spectra(csv_paths: List[str], out_path: str, show: bool) -> None:
         plt.show()
 
 
+def make_out_path(csv_path: str) -> str:
+    base_name = os.path.splitext(os.path.basename(csv_path))[0]
+    prefix = base_name.split("-", 1)[0]
+    out_dir = "image"
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, f"{prefix}.png")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Read 380-780 nm spectral data from CSV and plot."
     )
-    parser.add_argument("csv_paths", nargs="+", help="CSV file path(s)")
+    parser.add_argument("csv_paths", nargs="*", help="CSV file path(s)")
     parser.add_argument(
         "--out",
         default=None,
-        help="Output image path (default: <first_csv>_plot.png)",
+        help="Output image path (default: image/<prefix>.png)",
     )
     parser.add_argument("--show", action="store_true", help="Show the plot window")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Process all CSV files under the data/ directory",
+    )
+    parser.add_argument(
+        "--data-dir",
+        default="data",
+        help="Directory to scan when using --all (default: data)",
+    )
     args = parser.parse_args()
 
+    if args.all:
+        if args.out:
+            print("Note: --out is ignored when using --all.")
+        pattern = os.path.join(args.data_dir, "*.csv")
+        csv_paths = sorted(glob.glob(pattern))
+        if not csv_paths:
+            raise SystemExit(f"No CSV files found in: {args.data_dir}")
+        for path in csv_paths:
+            out_path = make_out_path(path)
+            plot_spectra([path], out_path, args.show)
+            print(f"Saved plot to: {out_path}")
+        return
+
+    if not args.csv_paths:
+        raise SystemExit("Please provide CSV file path(s), or use --all.")
+
     first = args.csv_paths[0]
-    out_path = args.out
-    if out_path is None:
-        base = os.path.splitext(first)[0]
-        out_path = f"{base}_plot.png"
+    out_path = args.out or make_out_path(first)
 
     plot_spectra(args.csv_paths, out_path, args.show)
     print(f"Saved plot to: {out_path}")
