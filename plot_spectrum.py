@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.ticker import MultipleLocator
 
 
 HEADER_MARKERS = {
@@ -144,16 +145,16 @@ def plot_spectra(csv_paths: List[str], out_path: str, show: bool) -> None:
 
     ax.autoscale_view()
     ax.set_xlim(380, 780)
-    ax.set_xlabel("Wavelength (nm)")
-    if unit_label:
-        ax.set_ylabel(f"Spectral power {unit_label}")
-    else:
-        ax.set_ylabel("Spectral power")
-    if len(csv_paths) == 1:
-        ax.set_title(os.path.basename(csv_paths[0]))
-    else:
-        ax.set_title("Spectra")
-        ax.legend(fontsize=8)
+    ax.xaxis.set_major_locator(MultipleLocator(20))
+    # if unit_label:
+    #     # ax.set_ylabel(f"Spectral power {unit_label}")
+    # else:
+    #     # ax.set_ylabel("Spectral power")
+    # if len(csv_paths) == 1:
+    #     # ax.set_title(os.path.basename(csv_paths[0]))
+    # else:
+    #     # ax.set_title("Spectra")
+    #     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
 
